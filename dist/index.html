@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="최대 3명이 함께 즐기는 레트로 픽셀 화살 피하기 게임">
+  <title>화살 피하기: 최후의 기수</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="masthead">
+      <div>
+        <p class="eyebrow">RETRO SURVIVAL · 1—3 PLAYERS</p>
+        <h1>화살 피하기 <span>최후의 기수</span></h1>
+      </div>
+      <button id="soundBtn" class="sound" type="button" aria-label="소리 켜기 또는 끄기">♪ SOUND ON</button>
+    </header>
+
+    <section class="score-strip" aria-label="게임 기록">
+      <div><small>생존 시간</small><strong id="timeText">00:00.0</strong></div>
+      <div><small>최고 기록</small><strong id="bestText">00:00.0</strong></div>
+      <div><small>획득 코인</small><strong id="coinText">000</strong></div>
+      <div><small>괴물 체력</small><strong id="bossText">■■■■■■■■■■</strong></div>
+    </section>
+
+    <section class="game-frame">
+      <canvas id="game" width="960" height="540" aria-label="화살 피하기 게임 화면"></canvas>
+
+      <div id="startScreen" class="overlay visible">
+        <div class="title-card">
+          <div class="pixel-art" aria-hidden="true"><span>♞</span><b>➵</b><em>♜</em></div>
+          <p class="stamp">THE LAST RIDER</p>
+          <h2>화살 피하기</h2>
+          <p>거대 괴물의 화살비를 피해<br>마지막까지 살아남아라!</p>
+          <div class="player-pick" aria-label="플레이어 수 선택">
+            <button class="count active" data-count="1">1P</button>
+            <button class="count" data-count="2">2P</button>
+            <button class="count" data-count="3">3P</button>
+          </div>
+          <button id="startBtn" class="primary" type="button">게임 시작</button>
+          <p class="micro">5분을 버티면 완전 통과!</p>
+        </div>
+      </div>
+
+      <div id="countdown" class="countdown" aria-live="polite"></div>
+
+      <div id="endScreen" class="overlay">
+        <div class="title-card end-card">
+          <p id="endLabel" class="stamp">GAME OVER</p>
+          <div id="medal" class="medal">🥉</div>
+          <h2 id="winnerText">기록 종료</h2>
+          <p id="resultText">생존 시간 00:00.0</p>
+          <button id="retryBtn" class="primary" type="button">다시 도전</button>
+          <button id="menuBtn" class="secondary" type="button">메인 화면</button>
+        </div>
+      </div>
+    </section>
+
+    <footer class="instructions">
+      <div class="instruction-title"><span>HOW TO PLAY</span><b>살아남은 자가 승자!</b></div>
+      <div class="control p1"><i>1P</i><p><strong>방향키</strong> 이동 · <strong>SHIFT</strong> 발사</p></div>
+      <div class="control p2"><i>2P</i><p><strong>WASD</strong> 이동 · <strong>F</strong> 발사</p></div>
+      <div class="control p3"><i>3P</i><p><strong>IJKL</strong> 이동 · <strong>H</strong> 발사</p></div>
+      <p class="tip">◆ 코인을 모으고 괴물을 쓰러뜨리면 보너스! · 사망 후에는 관전 모드</p>
+    </footer>
+  </main>
+  <script src="game.js"></script>
+</body>
+</html>
