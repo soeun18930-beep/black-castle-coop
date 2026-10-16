@@ -1,3 +1,138 @@
-import http from'node:http';import{WebSocketServer,WebSocket}from'ws';const PORT=process.env.PORT||3000,rooms=new Map(),COLORS=['#ff3f81','#22e7ff','#b6ff35'];const server=http.createServer((q,s)=>{s.setHeader('Access-Control-Allow-Origin','*');s.setHeader('Content-Type','application/json');s.end(JSON.stringify({ok:true,service:'black-castle-coop',rooms:rooms.size}))}),wss=new WebSocketServer({server}),newCode=()=>Math.random().toString(36).slice(2,6).toUpperCase();function fresh(c,h){return{code:c,hostId:h,phase:'waiting',elapsed:0,coins:0,bossHp:100,result:null,players:[],arrows:[],shots:[],fireballs:[],pickups:[],spawn:0,fireSpawn:5,coinSpawn:3,hurt:0,netClock:0,last:Date.now()}}function pub(r){return{code:r.code,hostId:r.hostId,phase:r.phase,elapsed:r.elapsed,coins:r.coins,bossHp:r.bossHp,result:r.result,hurt:r.hurt>0,players:r.players.map(({ws,input,lastShot,revive,...p})=>p),arrows:r.arrows,shots:r.shots,fireballs:r.fireballs,pickups:r.pickups}}function broadcast(r,msg){const d=JSON.stringify(msg);for(const p of r.players)if(p.ws.readyState===WebSocket.OPEN)p.ws.send(d)}function state(r){broadcast(r,{type:'state',state:pub(r)})}function join(ws,r,name){if(r.players.length>=3)return ws.send(JSON.stringify({type:'error',message:'이 방은 이미 3명입니다'}));const id=Math.random().toString(36).slice(2,9),slot=Math.min(3,r.players.length+1),p={id,slot,name:String(name||'이름 없는 기사').slice(0,10),x:130+r.players.length*60,y:250+r.players.length*60,color:COLORS[slot-1],hp:3,alive:true,revive:0,input:{x:0,y:0,shoot:false},lastShot:0,ws};r.players.push(p);ws.room=r.code;ws.pid=id;ws.send(JSON.stringify({type:'joined',room:r.code,playerId:id}));state(r)}function reset(r){Object.assign(r,{phase:'playing',elapsed:0,coins:0,bossHp:100,result:null,arrows:[],shots:[],fireballs:[],pickups:[],spawn:.7,fireSpawn:5,coinSpawn:3,hurt:0,netClock:0});r.players.forEach((p,i)=>Object.assign(p,{x:125,y:230+i*80,hp:3,alive:true,revive:0,lastShot:0}))}
-wss.on('connection',ws=>{ws.on('message',raw=>{let m;try{m=JSON.parse(raw)}catch{return}if(m.type==='create'){let c;do c=newCode();while(rooms.has(c));const r=fresh(c,null);rooms.set(c,r);join(ws,r,m.name);r.hostId=ws.pid;state(r)}else if(m.type==='join'){const r=rooms.get(String(m.code||'').toUpperCase());if(!r)return ws.send(JSON.stringify({type:'error',message:'방을 찾을 수 없습니다'}));if(r.phase==='playing')return ws.send(JSON.stringify({type:'error',message:'이미 전투가 시작된 방입니다'}));join(ws,r,m.name)}else{const r=rooms.get(ws.room),p=r?.players.find(x=>x.id===ws.pid);if(!r||!p)return;if(m.type==='start'&&r.hostId===p.id){reset(r);state(r)}if(m.type==='restart'){reset(r);state(r)}if(m.type==='input')p.input={x:Math.max(-1,Math.min(1,Number(m.x)||0)),y:Math.max(-1,Math.min(1,Number(m.y)||0)),shoot:!!m.shoot}}});ws.on('close',()=>{const r=rooms.get(ws.room);if(!r)return;r.players=r.players.filter(p=>p.id!==ws.pid);if(!r.players.length)rooms.delete(r.code);else{if(r.hostId===ws.pid)r.hostId=r.players[0].id;state(r)}})});function spawnArrow(r){const a=r.players.filter(p=>p.alive),t=a[Math.floor(Math.random()*a.length)];if(!t)return;const e=r.elapsed<25?0:Math.floor(Math.random()*4);let x,y;if(e===0){x=930;y=50+Math.random()*440}else if(e===1){x=20;y=50+Math.random()*440}else if(e===2){x=40+Math.random()*780;y=20}else{x=40+Math.random()*780;y=510}const sp=210+Math.min(230,r.elapsed*1.1),ang=Math.atan2(t.y-y,t.x-x);r.arrows.push({x,y,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp})}function spawnFireball(r){const alive=r.players.filter(p=>p.alive),t=alive[Math.floor(Math.random()*alive.length)];if(!t)return;const x=815,y=205+Math.random()*130,ang=Math.atan2(t.y-y,t.x-x),speed=175;r.fireballs.push({x,y,vx:Math.cos(ang)*speed,vy:Math.sin(ang)*speed})}
-function tick(){const now=Date.now();for(const r of rooms.values()){const dt=Math.min(.05,(now-r.last)/1000);r.last=now;if(r.phase!=='playing')continue;r.elapsed+=dt;r.spawn-=dt;r.fireSpawn-=dt;r.coinSpawn-=dt;r.netClock-=dt;r.hurt=Math.max(0,r.hurt-dt);if(r.spawn<=0){spawnArrow(r);if(r.elapsed>60&&Math.random()<.42)spawnArrow(r);r.spawn=Math.max(.11,.72-r.elapsed*.003)}if(r.fireSpawn<=0){spawnFireball(r);r.fireSpawn=5;broadcast(r,{type:'notice',message:'괴물이 즉사 불꽃을 던졌습니다!'})}if(r.coinSpawn<=0){r.pickups.push({x:760,y:70+Math.random()*400});r.coinSpawn=5+Math.random()*3}for(const p of r.players){if(!p.alive)continue;const l=Math.hypot(p.input.x,p.input.y)||1;p.x=Math.max(28,Math.min(790,p.x+p.input.x/l*185*dt));p.y=Math.max(45,Math.min(500,p.y+p.input.y/l*185*dt));p.lastShot-=dt;if(p.input.shoot&&p.lastShot<=0){r.shots.push({x:p.x+18,y:p.y-6,vx:520});p.lastShot=.38}}for(const a of r.arrows){a.x+=a.vx*dt;a.y+=a.vy*dt;for(const p of r.players)if(p.alive&&Math.abs(a.x-p.x)<17&&Math.abs(a.y-p.y)<22){p.hp=Math.max(0,p.hp-1);a.dead=true;if(p.hp<=0){p.alive=false;broadcast(r,{type:'notice',message:`${p.name}님의 체력이 모두 줄어 쓰러졌습니다!`})}else broadcast(r,{type:'notice',message:`${p.name}님 화살 피격 · 체력 ${p.hp}/3`})}}for(const f of r.fireballs){f.x+=f.vx*dt;f.y+=f.vy*dt;for(const p of r.players)if(p.alive&&Math.hypot(f.x-p.x,f.y-p.y)<27){p.hp=0;p.alive=false;f.dead=true;broadcast(r,{type:'notice',message:`${p.name}님이 불꽃에 맞아 즉사했습니다!`})}}for(const s of r.shots){s.x+=s.vx*dt;if(s.x>815){s.dead=true;r.bossHp=Math.max(0,r.bossHp-2);r.hurt=.38}}for(const c of r.pickups)for(const p of r.players)if(p.alive&&Math.hypot(c.x-p.x,c.y-p.y)<24){c.dead=true;r.coins++}for(const d of r.players.filter(p=>!p.alive)){const near=r.players.some(p=>p.alive&&Math.hypot(p.x-d.x,p.y-d.y)<55);d.revive=near?d.revive+dt:Math.max(0,d.revive-dt);if(d.revive>=3){d.hp=3;d.alive=true;d.revive=0;broadcast(r,{type:'notice',message:`${d.name}님이 체력을 회복하고 다시 일어났습니다!`})}}r.arrows=r.arrows.filter(a=>!a.dead&&a.x>-50&&a.x<1010&&a.y>-50&&a.y<590);r.fireballs=r.fireballs.filter(f=>!f.dead&&f.x>-80&&f.x<1040&&f.y>-80&&f.y<620);r.shots=r.shots.filter(s=>!s.dead);r.pickups=r.pickups.filter(c=>!c.dead);if(r.bossHp<=0||r.elapsed>=300){r.phase='ended';r.result='win'}else if(r.players.every(p=>!p.alive)){r.phase='ended';r.result='lose'}if(r.netClock<=0||r.phase==='ended'){state(r);r.netClock=.1}}}setInterval(tick,50);server.listen(PORT,'0.0.0.0',()=>console.log(`coop server listening on ${PORT}`));
+import http from 'node:http';
+import { WebSocketServer, WebSocket } from 'ws';
+
+const PORT = process.env.PORT || 3000;
+const rooms = new Map();
+const COLORS = ['#ff3f81', '#22e7ff', '#b6ff35'];
+const server = http.createServer((request, response) => {
+  response.setHeader('Access-Control-Allow-Origin', '*');
+  response.setHeader('Content-Type', 'application/json');
+  response.end(JSON.stringify({ ok: true, service: 'black-castle-coop', rooms: rooms.size }));
+});
+const wss = new WebSocketServer({ server });
+const newCode = () => Math.random().toString(36).slice(2, 6).toUpperCase();
+
+function fresh(code, hostId) {
+  return { code, hostId, phase: 'waiting', elapsed: 0, coins: 0, bossHp: 100, result: null, players: [], arrows: [], shots: [], fireballs: [], pickups: [], spawn: 0, fireSpawn: 5, coinSpawn: 3, hurt: 0, netClock: 0, last: Date.now() };
+}
+function pub(room) {
+  return { code: room.code, hostId: room.hostId, phase: room.phase, elapsed: room.elapsed, coins: room.coins, bossHp: room.bossHp, result: room.result, hurt: room.hurt > 0, players: room.players.map(({ ws, input, lastShot, revive, ...player }) => player), arrows: room.arrows, shots: room.shots, fireballs: room.fireballs, pickups: room.pickups };
+}
+function broadcast(room, message) {
+  const data = JSON.stringify(message);
+  for (const player of room.players) if (player.ws.readyState === WebSocket.OPEN) player.ws.send(data);
+}
+function state(room) { broadcast(room, { type: 'state', state: pub(room) }); }
+function join(ws, room, name) {
+  if (room.players.length >= 3) return ws.send(JSON.stringify({ type: 'error', message: '이 방은 이미 3명입니다' }));
+  const id = Math.random().toString(36).slice(2, 9), slot = Math.min(3, room.players.length + 1);
+  const player = { id, slot, name: String(name || '이름 없는 기사').slice(0, 10), x: 130 + room.players.length * 60, y: 250 + room.players.length * 60, color: COLORS[slot - 1], hp: 3, alive: true, damage: 0, revive: 0, input: { x: 0, y: 0, shoot: false }, lastShot: 0, ws };
+  room.players.push(player); ws.room = room.code; ws.pid = id;
+  ws.send(JSON.stringify({ type: 'joined', room: room.code, playerId: id })); state(room);
+}
+function reset(room) {
+  Object.assign(room, { phase: 'playing', elapsed: 0, coins: 0, bossHp: 100, result: null, arrows: [], shots: [], fireballs: [], pickups: [], spawn: .7, fireSpawn: 5, coinSpawn: 3, hurt: 0, netClock: 0 });
+  room.players.forEach((player, index) => Object.assign(player, { x: 125, y: 230 + index * 80, hp: 3, alive: true, damage: 0, revive: 0, lastShot: 0 }));
+}
+
+wss.on('connection', ws => {
+  ws.on('message', raw => {
+    let message;
+    try { message = JSON.parse(raw); } catch { return; }
+    if (message.type === 'create') {
+      let code; do code = newCode(); while (rooms.has(code));
+      const room = fresh(code, null); rooms.set(code, room); join(ws, room, message.name); room.hostId = ws.pid; state(room); return;
+    }
+    if (message.type === 'join') {
+      const room = rooms.get(String(message.code || '').toUpperCase());
+      if (!room) return ws.send(JSON.stringify({ type: 'error', message: '방을 찾을 수 없습니다' }));
+      if (room.phase === 'playing') return ws.send(JSON.stringify({ type: 'error', message: '이미 전투가 시작된 방입니다' }));
+      join(ws, room, message.name); return;
+    }
+    const room = rooms.get(ws.room), player = room?.players.find(candidate => candidate.id === ws.pid);
+    if (!room || !player) return;
+    if (message.type === 'start' && room.hostId === player.id) { reset(room); state(room); }
+    if (message.type === 'restart') { reset(room); state(room); }
+    if (message.type === 'input') player.input = { x: Math.max(-1, Math.min(1, Number(message.x) || 0)), y: Math.max(-1, Math.min(1, Number(message.y) || 0)), shoot: Boolean(message.shoot) };
+  });
+  ws.on('close', () => {
+    const room = rooms.get(ws.room); if (!room) return;
+    room.players = room.players.filter(player => player.id !== ws.pid);
+    if (!room.players.length) rooms.delete(room.code);
+    else { if (room.hostId === ws.pid) room.hostId = room.players[0].id; state(room); }
+  });
+});
+
+function spawnArrow(room) {
+  const alive = room.players.filter(player => player.alive), target = alive[Math.floor(Math.random() * alive.length)];
+  if (!target) return;
+  const edge = room.elapsed < 25 ? 0 : Math.floor(Math.random() * 4); let x, y;
+  if (edge === 0) { x = 930; y = 50 + Math.random() * 440; }
+  else if (edge === 1) { x = 20; y = 50 + Math.random() * 440; }
+  else if (edge === 2) { x = 40 + Math.random() * 780; y = 20; }
+  else { x = 40 + Math.random() * 780; y = 510; }
+  const speed = 210 + Math.min(230, room.elapsed * 1.1), angle = Math.atan2(target.y - y, target.x - x);
+  room.arrows.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed });
+}
+function spawnFireball(room) {
+  const alive = room.players.filter(player => player.alive), target = alive[Math.floor(Math.random() * alive.length)];
+  if (!target) return;
+  const x = 815, y = 205 + Math.random() * 130, angle = Math.atan2(target.y - y, target.x - x);
+  room.fireballs.push({ x, y, vx: Math.cos(angle) * 175, vy: Math.sin(angle) * 175 });
+}
+
+function tick() {
+  const now = Date.now();
+  for (const room of rooms.values()) {
+    const dt = Math.min(.05, (now - room.last) / 1000); room.last = now;
+    if (room.phase !== 'playing') continue;
+    room.elapsed += dt; room.spawn -= dt; room.fireSpawn -= dt; room.coinSpawn -= dt; room.netClock -= dt; room.hurt = Math.max(0, room.hurt - dt);
+    if (room.spawn <= 0) { spawnArrow(room); if (room.elapsed > 60 && Math.random() < .42) spawnArrow(room); room.spawn = Math.max(.11, .72 - room.elapsed * .003); }
+    if (room.fireSpawn <= 0) { spawnFireball(room); room.fireSpawn = 5; broadcast(room, { type: 'notice', message: '괴물이 즉사 불꽃을 던졌습니다!' }); }
+    if (room.coinSpawn <= 0) { room.pickups.push({ x: 760, y: 70 + Math.random() * 400 }); room.coinSpawn = 5 + Math.random() * 3; }
+    for (const player of room.players) {
+      if (!player.alive) continue;
+      const length = Math.hypot(player.input.x, player.input.y) || 1;
+      player.x = Math.max(28, Math.min(790, player.x + player.input.x / length * 185 * dt));
+      player.y = Math.max(45, Math.min(500, player.y + player.input.y / length * 185 * dt));
+      player.lastShot -= dt;
+      if (player.input.shoot && player.lastShot <= 0) { room.shots.push({ x: player.x + 18, y: player.y - 6, vx: 520, ownerId: player.id }); player.lastShot = .38; }
+    }
+    for (const arrow of room.arrows) {
+      arrow.x += arrow.vx * dt; arrow.y += arrow.vy * dt;
+      for (const player of room.players) if (player.alive && Math.abs(arrow.x - player.x) < 17 && Math.abs(arrow.y - player.y) < 22) {
+        player.hp = Math.max(0, player.hp - 1); arrow.dead = true;
+        if (player.hp <= 0) { player.alive = false; broadcast(room, { type: 'notice', message: `${player.name}님의 체력이 모두 줄어 쓰러졌습니다!` }); }
+        else broadcast(room, { type: 'notice', message: `${player.name}님 화살 피격 · 체력 ${player.hp}/3` });
+      }
+    }
+    for (const fireball of room.fireballs) {
+      fireball.x += fireball.vx * dt; fireball.y += fireball.vy * dt;
+      for (const player of room.players) if (player.alive && Math.hypot(fireball.x - player.x, fireball.y - player.y) < 27) { player.hp = 0; player.alive = false; fireball.dead = true; broadcast(room, { type: 'notice', message: `${player.name}님이 불꽃에 맞아 즉사했습니다!` }); }
+    }
+    for (const shot of room.shots) {
+      shot.x += shot.vx * dt;
+      if (shot.x > 815) {
+        shot.dead = true;
+        const damage = Math.min(2, room.bossHp); room.bossHp = Math.max(0, room.bossHp - damage);
+        const owner = room.players.find(player => player.id === shot.ownerId); if (owner) owner.damage += damage;
+        room.hurt = .38;
+      }
+    }
+    for (const coin of room.pickups) for (const player of room.players) if (player.alive && Math.hypot(coin.x - player.x, coin.y - player.y) < 24) { coin.dead = true; room.coins++; }
+    for (const downed of room.players.filter(player => !player.alive)) {
+      const near = room.players.some(player => player.alive && Math.hypot(player.x - downed.x, player.y - downed.y) < 55);
+      downed.revive = near ? downed.revive + dt : Math.max(0, downed.revive - dt);
+      if (downed.revive >= 3) { downed.hp = 3; downed.alive = true; downed.revive = 0; broadcast(room, { type: 'notice', message: `${downed.name}님이 체력을 회복하고 다시 일어났습니다!` }); }
+    }
+    room.arrows = room.arrows.filter(arrow => !arrow.dead && arrow.x > -50 && arrow.x < 1010 && arrow.y > -50 && arrow.y < 590);
+    room.fireballs = room.fireballs.filter(fireball => !fireball.dead && fireball.x > -80 && fireball.x < 1040 && fireball.y > -80 && fireball.y < 620);
+    room.shots = room.shots.filter(shot => !shot.dead); room.pickups = room.pickups.filter(coin => !coin.dead);
+    if (room.bossHp <= 0 || room.elapsed >= 300) { room.phase = 'ended'; room.result = 'win'; }
+    else if (room.players.every(player => !player.alive)) { room.phase = 'ended'; room.result = 'lose'; }
+    if (room.netClock <= 0 || room.phase === 'ended') { state(room); room.netClock = .1; }
+  }
+}
+
+setInterval(tick, 50);
+server.listen(PORT, '0.0.0.0', () => console.log(`coop server listening on ${PORT}`));
