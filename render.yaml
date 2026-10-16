@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: black-castle-coop-server
+    runtime: node
+    plan: free
+    region: singapore
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    autoDeploy: true

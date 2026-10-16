@@ -1,70 +1,8 @@
-<!doctype html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="최대 3명이 함께 즐기는 레트로 픽셀 화살 피하기 게임">
-  <title>화살 피하기: 최후의 기수</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <main class="shell">
-    <header class="masthead">
-      <div>
-        <p class="eyebrow">RETRO SURVIVAL · 1—3 PLAYERS</p>
-        <h1>화살 피하기 <span>최후의 기수</span></h1>
-      </div>
-      <button id="soundBtn" class="sound" type="button" aria-label="소리 켜기 또는 끄기">♪ SOUND ON</button>
-    </header>
-
-    <section class="score-strip" aria-label="게임 기록">
-      <div><small>생존 시간</small><strong id="timeText">00:00.0</strong></div>
-      <div><small>최고 기록</small><strong id="bestText">00:00.0</strong></div>
-      <div><small>획득 코인</small><strong id="coinText">000</strong></div>
-      <div><small>괴물 체력</small><strong id="bossText">■■■■■■■■■■</strong></div>
-    </section>
-
-    <section class="game-frame">
-      <canvas id="game" width="960" height="540" aria-label="화살 피하기 게임 화면"></canvas>
-
-      <div id="startScreen" class="overlay visible">
-        <div class="title-card">
-          <div class="pixel-art" aria-hidden="true"><span>♞</span><b>➵</b><em>♜</em></div>
-          <p class="stamp">THE LAST RIDER</p>
-          <h2>화살 피하기</h2>
-          <p>거대 괴물의 화살비를 피해<br>마지막까지 살아남아라!</p>
-          <div class="player-pick" aria-label="플레이어 수 선택">
-            <button class="count active" data-count="1">1P</button>
-            <button class="count" data-count="2">2P</button>
-            <button class="count" data-count="3">3P</button>
-          </div>
-          <button id="startBtn" class="primary" type="button">게임 시작</button>
-          <p class="micro">5분을 버티면 완전 통과!</p>
-        </div>
-      </div>
-
-      <div id="countdown" class="countdown" aria-live="polite"></div>
-
-      <div id="endScreen" class="overlay">
-        <div class="title-card end-card">
-          <p id="endLabel" class="stamp">GAME OVER</p>
-          <div id="medal" class="medal">🥉</div>
-          <h2 id="winnerText">기록 종료</h2>
-          <p id="resultText">생존 시간 00:00.0</p>
-          <button id="retryBtn" class="primary" type="button">다시 도전</button>
-          <button id="menuBtn" class="secondary" type="button">메인 화면</button>
-        </div>
-      </div>
-    </section>
-
-    <footer class="instructions">
-      <div class="instruction-title"><span>HOW TO PLAY</span><b>살아남은 자가 승자!</b></div>
-      <div class="control p1"><i>1P</i><p><strong>방향키</strong> 이동 · <strong>SHIFT</strong> 발사</p></div>
-      <div class="control p2"><i>2P</i><p><strong>WASD</strong> 이동 · <strong>F</strong> 발사</p></div>
-      <div class="control p3"><i>3P</i><p><strong>IJKL</strong> 이동 · <strong>H</strong> 발사</p></div>
-      <p class="tip">◆ 코인을 모으고 괴물을 쓰러뜨리면 보너스! · 사망 후에는 관전 모드</p>
-    </footer>
-  </main>
-  <script src="game.js"></script>
-</body>
-</html>
+<!doctype html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="최대 3명이 힘을 합쳐 검은 성의 화살비를 버티는 실시간 협력 게임"><title>검은 성의 마지막 불꽃</title><link rel="stylesheet" href="style.css"></head><body>
+<main class="shell"><header class="topbar"><div class="brand"><span class="flame">♨</span><div><small>3-PLAYER CO-OP SURVIVAL</small><h1>검은 성의 <em>마지막 불꽃</em></h1></div></div><button id="soundBtn" class="icon-btn">♪ 소리 켬</button></header>
+<section class="hud"><div><span>방 코드</span><strong id="roomText">— — — —</strong></div><div><span>생존 시간</span><strong id="timeText">00:00</strong></div><div><span>팀 코인</span><strong id="coinText">000</strong></div><div><span>괴물 체력</span><strong id="bossText">100%</strong></div></section>
+<section class="game-wrap"><canvas id="game" width="960" height="540" aria-label="검은 성 협력 생존 게임"></canvas><div id="notice" class="notice"></div>
+<div id="lobby" class="overlay visible"><article class="panel"><div class="candle-mark"><i></i><b></b></div><p class="kicker">CO-OP · 1—3 RIDERS</p><h2>마지막 불꽃을<br><span>함께 지켜라</span></h2><p class="intro">친구들과 같은 방에 모여 화살비를 버티고<br>성벽을 무너뜨리는 괴물을 쓰러뜨리세요.</p><label>기사 이름<input id="nameInput" maxlength="10" placeholder="이름을 입력하세요"></label><button id="createBtn" class="primary">새로운 방 만들기</button><div class="divider"><span>또는</span></div><div class="join-row"><input id="codeInput" maxlength="4" placeholder="방 코드 4자리"><button id="joinBtn">참가</button></div><p id="connectionText" class="connection">서버 연결 준비 중…</p></article></div>
+<div id="waiting" class="overlay"><article class="panel waiting-panel"><p class="kicker">GATHER YOUR PARTY</p><h2>동료를 기다리는 중</h2><div id="bigCode" class="big-code">----</div><p>친구에게 이 코드나 현재 주소를 보내세요.</p><div id="party" class="party"></div><button id="startBtn" class="primary">협력전 시작</button><button id="copyBtn" class="ghost">초대 주소 복사</button></article></div>
+<div id="end" class="overlay"><article class="panel end-panel"><p id="endKicker" class="kicker">THE FLAME ENDURES</p><h2 id="endTitle">공동 승리!</h2><p id="endText"></p><button id="againBtn" class="primary">같은 동료와 다시</button><button id="leaveBtn" class="ghost">로비로 나가기</button></article></div></section>
+<footer class="guide"><div><b>이동</b><span>WASD 또는 방향키</span></div><div><b>공격</b><span>SPACE 또는 SHIFT</span></div><div><b>부활</b><span>쓰러진 동료 곁에서 3초</span></div><p>순위는 없습니다. 함께 버티고, 함께 승리하세요.</p></footer></main><script src="config.js"></script><script src="game.js"></script></body></html>
