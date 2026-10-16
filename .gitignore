@@ -3,3 +3,6 @@ gameplay.png
 coop-preview.png
 site-package.tar.gz
 server/node_modules/
+
+.vercel
+.env*
